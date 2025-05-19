@@ -61,5 +61,5 @@ section .data
  
 section .bss                        ; Uninitialized data section
     num resb 2
-    ; resb means reserve byte. num is a label to the start of the 5 allocated bytes.
+    ; resb means reserve byte. num is a label to the start of the 2 allocated bytes.
     ; Bytes are 0-filled and allocated at start of execution
