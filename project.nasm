@@ -88,6 +88,7 @@ inp_loop:
     je update_min_max_first
     jne update_min_max_other
 
+; The update min/max funcs need a label to jump to after completing
 continue_loop:
     ; Decrement the loop counter and jump back while we still need to input numbers
     dec byte [loopcounter]
@@ -126,37 +127,38 @@ continue_loop:
     cmp dword [num_holder2], 0
     jg print_remainder
 
+; Need a label for print_remainder to jump back to if called
 continue_prog:
 
+    ; Print our range information. We will be printing strings for the output
     mov eax, 4
     mov ebx, 1
     mov ecx, rangePrint
     mov edx, rangPrintLen
     int 0x80
-
+    ; Calculate the range. Subtract the max from the min and print out the value
     mov eax, [max]
     sub eax, [min]
     push dword eax
     call print_val
-
+    
+    ; Print minimum
     mov eax, 4
     mov ebx, 1
     mov ecx, minPrint
     mov edx, minPrintLen
     int 0x80
-
     push dword [min]
     call print_val
-
+    ; Print maximum
     mov eax, 4
     mov ebx, 1
     mov ecx, maxPrint
     mov edx, maxPrintLen
     int 0x80
-
     push dword [max]
     call print_val
-
+    ; Print closing parentheses
     mov eax, 4
     mov ebx, 1
     mov ecx, rightPara
@@ -177,6 +179,7 @@ continue_prog:
 
 ; Update the min/max value after getting the first value
 update_min_max_first:
+    ; User inputted number is in num_holder, so we move to edx, do comparisons, then continue the loop
     mov edx, [num_holder]
     mov [max], edx
     mov [min], edx
@@ -201,7 +204,7 @@ update_min:
 
 ; Add remainder to calculation
 print_remainder:
-
+    ; Prints the remainder, as ".N" where N is the remainder decimal
     mov eax, 4
     mov ebx, 1
     mov ecx, perSym
@@ -213,6 +216,7 @@ print_remainder:
 
     jmp continue_prog
 
+; Following 3 labels are together. Help parse a '1' into a 1. Convert the ASCII representation into an actual number
 parse_num:
     ; Faster way to set cpu register to be 0 rather than just "MOV REG, 0"
     xor eax, eax
@@ -234,17 +238,16 @@ convert_loop:
     ; Update the ecx register so we can read the next digit
     inc ecx
     jmp convert_loop
-
 ; Done with loop so move value into num_holder address and return
 done_convert:
     mov [num_holder], eax
     ret
 
 
-; Input: 32-bit number is on the stack (esp)
-; Output: prints number + newline to stdout
+; Prints out an integer by converting it to it's ASCII form. Need to input as a variable on the stack (esp)
 print_val:
-
+    ; Section prologue. We are updating the base pointer's frame of reference from the initial frame to the new, print_val frame of reference.
+    ; We are using the stack to save the values that are currently stored in the registers, as we want to restore them before going back.
     push ebp
     mov ebp, esp
     push eax
@@ -252,43 +255,65 @@ print_val:
     push ecx
     push edx
 
-    mov eax, [ebp + 8]       ; Get the 32-bit value from stack
+    ; Because the stack addresses grow negative as we push to it
+    ; and we also push a return address to the stack, we need to go forward 8 bytes to get the value we are passing via the stack
+    ; We are putting this number in the eax register to begin with
+    mov eax, [ebp + 8]
 
-    mov ecx, print_buf + 11  ; End of buffer
-    ; mov byte [ecx], ' '      ; Empty Space
-    dec ecx                  ; Move back to fill digits
-
+    ; print_buf is a pointer to the start of a set of 12 reserved bytes (2^32 max digits + new line character) where we will store the ascii character values
+    ; We are fiilling the buffer right to left, so least significant to most.
+    mov ecx, print_buf + 11
+    dec ecx
+    
+    ; We need to make sure the value we are passing via the stack isn't 0. If it's 0. We don't need it to enter the digit loop
     cmp eax, 0
     jne .convert
+
+    ; If eax is 0, or empty, then we just put the 0 ascii into ecx to print that out
     mov byte [ecx], '0'
     dec ecx
     jmp .done
 
 .convert:
-    xor edx, edx
+    xor edx, edx ; 0 out the edx register
+    ; flow will automatically go into next_digit
 .next_digit:
     mov ebx, 10
-    div ebx                  ; EAX = EAX / 10, remainder in EDX
-    add dl, '0'              ; Convert remainder to ASCII
+    div ebx ; syntax for saying eax /= 10. it divides value in eax by 10
+
+    add dl, '0'
+    ; ^ Add the ascii '0' to the digit. Remember, we are going left to right. We divide by 10, get the remainder value
+    ; And then we want to convert the number to its ascii representation, so we add '0' to get that
     mov [ecx], dl
     dec ecx
+    ; ecx, remember, contains the memory address where we have our ascii buffer stored. We are storing the new ascii we calculated in the buffer
+    ; we decrement it because again, we are filling from right to left
+
+    ; reset the edx register
     xor edx, edx
-    test eax, eax
-    jnz .next_digit
+    ; Remember, eax stores the result of dividing by ten. 121 / 10 -> eax = 12, dl = 1
+    test eax, eax ; Bitwise AND operator. This is the fastest way to check if register is set to 0.
+    ; This is faster than doing cmp eax, 0.
+    ; the test keyword sets a couple of flags on the cpu, which is how jnz evaluates 
+    jnz .next_digit ; If the register is not 0, we have another digit we need to parse.
 
 .done:
-    inc ecx                  ; Point to first digit
+    ; Remember, ecx is our pointer to where we currently are in memory for printing out the ascii representation
+    ; We need to increment ecx by 1 to get the pointer to the first byte we are printing out.
+    inc ecx
 
-    mov eax, 4               ; sys_write
-    mov ebx, 1               ; stdout
+    ; Print the digits
+    mov eax, 4
+    mov ebx, 1
+    ; ecx already contains the start pointer
     mov edx, print_buf + 12
-    sub edx, ecx             ; length = end - start
-    mov ecx, ecx             ; buffer ptr already in ecx
     int 0x80
 
+    ; We are popping the stack which contains the saved register values, thus restoring what we had previously.
+    ; This way, we aren't leaving the stack modified.
     pop edx
     pop ecx
     pop ebx
     pop eax
     pop ebp
-    ret
+    ret ; Ret handles the jumping to the return address in memory (thats already on the stack)
