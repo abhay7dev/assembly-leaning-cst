@@ -34,8 +34,6 @@ section .data
 
     loopcounter db 10
 
-    primeLoopNum dd 1
-
     primePrint db 0x0a, "Number of Primes: "
     primePrintLen equ $ - primePrint
 
@@ -50,7 +48,8 @@ section .bss
     max resb 4
     min resb 4
 
-    primecount resb 1
+    primeLoopNum resd 1
+    primecount resd 1
 
     print_buf resb 12
 
@@ -98,6 +97,7 @@ inp_loop:
 ; The update min/max funcs need a label to jump to after completing
 continue_loopMM:
 
+    ; Call the label to check if number is prime
     call check_primality
 
     ; Decrement the loop counter and jump back while we still need to input numbers
@@ -223,19 +223,18 @@ update_min:
 
 ; Check whether number is prime
 check_primality:
+    mov dword [primeLoopNum], 1 ; Reset primeLoopNum to 1
+
     ; Check small values for primes: 0, 1, 2, 3 
     mov eax, [num_holder]
     cmp eax, 0
-    je finPrimeLoop
-    mov eax, [num_holder]
+    je exitPrimeCheck
     cmp eax, 1
-    je finPrimeLoop
-    mov eax, [num_holder]
+    je exitPrimeCheck
     cmp eax, 2
-    je isprime
-    mov eax, [num_holder]
+    je isPrime
     cmp eax, 3
-    je isprime
+    je isPrime
 
     ; Check if number is even. If it is, it's not prime
     mov eax, [num_holder]
@@ -243,8 +242,7 @@ check_primality:
     mov ebx, 2
     div ebx
     cmp edx, 0
-    je finPrimeLoop
-
+    je exitPrimeCheck
 checkNumsLoop:
     inc dword [primeLoopNum]
     inc dword [primeLoopNum]
@@ -255,19 +253,14 @@ checkNumsLoop:
     div ebx
 
     cmp edx, 0
-    je finPrimeLoop
+    je exitPrimeCheck
 
     mov eax, [num_holder]
     cmp [primeLoopNum], eax
-    jge finPrimeLoopComp
-    jmp checkNumsLoop
-finPrimeLoopComp:
-    inc byte [primecount]
-finPrimeLoop:
-    mov dword [primeLoopNum], 1
-    ret
-isprime:
-    inc byte [primecount]
+    jl checkNumsLoop
+isPrime:
+    inc dword [primecount]
+exitPrimeCheck:
     ret
 
 ; Add remainder to calculation
