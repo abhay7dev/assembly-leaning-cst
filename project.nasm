@@ -34,6 +34,9 @@ section .data
 
     loopcounter db 10
 
+    primePrint db 0x0a, "Number of Primes: "
+    primePrintLen equ $ - primePrint
+
 ; bss section to hold uninitialized values in memory.
 section .bss
     input_buf resb 12
@@ -44,6 +47,8 @@ section .bss
 
     max resb 4
     min resb 4
+
+    primecount resb 1
 
     print_buf resb 12
 
@@ -89,7 +94,7 @@ inp_loop:
     jne update_min_max_other
 
 ; The update min/max funcs need a label to jump to after completing
-continue_loop:
+continue_loopMM:
     ; Decrement the loop counter and jump back while we still need to input numbers
     dec byte [loopcounter]
     cmp byte [loopcounter], 1
@@ -165,6 +170,15 @@ continue_prog:
     mov edx, rightParaLen
     int 0x80
 
+    ; Print the number of prime numbers
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, primePrint
+    mov edx, primePrintLen
+    int 0x80
+    push dword [primecount]
+    call print_val
+
     ; Print newline at end of program
     mov eax, 4
     mov ebx, 1
@@ -183,7 +197,7 @@ update_min_max_first:
     mov edx, [num_holder]
     mov [max], edx
     mov [min], edx
-    jmp continue_loop
+    jmp continue_loopMM
 
 ; Update min/max value after getting any other value by comparing to current min/max
 update_min_max_other:
@@ -194,13 +208,13 @@ update_min_max_other:
     cmp edx, [min]
     jl update_min
 
-    jmp continue_loop
+    jmp continue_loopMM
 update_max:
     mov [max], edx
-    jmp continue_loop
+    jmp continue_loopMM
 update_min:
     mov [min], edx
-    jmp continue_loop
+    jmp continue_loopMM
 
 ; Add remainder to calculation
 print_remainder:
