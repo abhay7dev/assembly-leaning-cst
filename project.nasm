@@ -34,6 +34,8 @@ section .data
 
     loopcounter db 10
 
+    primeLoopNum dd 1
+
     primePrint db 0x0a, "Number of Primes: "
     primePrintLen equ $ - primePrint
 
@@ -95,6 +97,9 @@ inp_loop:
 
 ; The update min/max funcs need a label to jump to after completing
 continue_loopMM:
+
+    call check_primality
+
     ; Decrement the loop counter and jump back while we still need to input numbers
     dec byte [loopcounter]
     cmp byte [loopcounter], 1
@@ -215,6 +220,55 @@ update_max:
 update_min:
     mov [min], edx
     jmp continue_loopMM
+
+; Check whether number is prime
+check_primality:
+    ; Check small values for primes: 0, 1, 2, 3 
+    mov eax, [num_holder]
+    cmp eax, 0
+    je finPrimeLoop
+    mov eax, [num_holder]
+    cmp eax, 1
+    je finPrimeLoop
+    mov eax, [num_holder]
+    cmp eax, 2
+    je isprime
+    mov eax, [num_holder]
+    cmp eax, 3
+    je isprime
+
+    ; Check if number is even. If it is, it's not prime
+    mov eax, [num_holder]
+    xor edx, edx
+    mov ebx, 2
+    div ebx
+    cmp edx, 0
+    je finPrimeLoop
+
+checkNumsLoop:
+    inc dword [primeLoopNum]
+    inc dword [primeLoopNum]
+
+    mov eax, [num_holder]
+    xor edx, edx
+    mov ebx, [primeLoopNum]
+    div ebx
+
+    cmp edx, 0
+    je finPrimeLoop
+
+    mov eax, [num_holder]
+    cmp [primeLoopNum], eax
+    jge finPrimeLoopComp
+    jmp checkNumsLoop
+finPrimeLoopComp:
+    inc byte [primecount]
+finPrimeLoop:
+    mov dword [primeLoopNum], 1
+    ret
+isprime:
+    inc byte [primecount]
+    ret
 
 ; Add remainder to calculation
 print_remainder:
