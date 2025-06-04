@@ -225,7 +225,7 @@ update_min:
 
 ; Check whether number is prime
 check_primality:
-    mov dword [primeLoopNum], 1 ; Reset primeLoopNum to 1
+    mov dword [primeLoopNum], 1 ; Reset primeLoopNum to 1. Further explained below
 
     ; Check small values for primes: 0, 1, 2, 3 
     mov eax, [num_holder]
@@ -247,27 +247,34 @@ check_primality:
     cmp edx, 0
     je exitPrimeCheck
 checkNumsLoop:
+    ; primeLoopNum is the number we divide by in order to check if a number is prime in this brute force algorithm
+    ; Because we already check if the number is even, we only have to check odd numbers, so we increment by 2 to get the sequence 1, 3, 5, 7, ...
+    ; I can improve upon this by iterating only up until the floor of the square root of the number, but implementing that in assembly is pretty tricky
+    inc dword [primeLoopNum]
+    inc dword [primeLoopNum]
     mov ebx, [primeLoopNum]
-    inc ebx
-    inc ebx
-    mov dword [primeLoopNum], ebx
 
+    ; If ebx and eax are the same, then we know we have gone through all numbers below. We know the number is prime
     cmp ebx, eax
     jge isPrime
 
+    ; Divides the user inputted number by the current loop number.
+    ; If the remainder is 0, that means there was a perfect division, which means the num isn't prime
     mov eax, [num_holder]
     xor edx, edx
     div ebx
-
     cmp edx, 0
     je exitPrimeCheck
 
+    ; We update eax once more (beacuse it may have been modified) and jump back.
+    ; Our exit condition is a couple lines above, where I do a jge after compaing ebx, eax
     mov eax, [num_holder]
-    cmp [primeLoopNum], eax
-    jl checkNumsLoop
+    jmp checkNumsLoop
 isPrime:
+    ; If the number is prime, we just increase the primecount variable
     inc dword [primecount]
 exitPrimeCheck:
+    ; Go back to where this was called from
     jmp continue_loopPr
 
 ; Add remainder to calculation
