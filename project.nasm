@@ -98,7 +98,9 @@ inp_loop:
 continue_loopMM:
 
     ; Call the label to check if number is prime
-    call check_primality
+    jmp check_primality
+
+continue_loopPr:
 
     ; Decrement the loop counter and jump back while we still need to input numbers
     dec byte [loopcounter]
@@ -236,6 +238,7 @@ check_primality:
     cmp eax, 3
     je isPrime
 
+
     ; Check if number is even. If it is, it's not prime
     mov eax, [num_holder]
     xor edx, edx
@@ -244,12 +247,16 @@ check_primality:
     cmp edx, 0
     je exitPrimeCheck
 checkNumsLoop:
-    inc dword [primeLoopNum]
-    inc dword [primeLoopNum]
+    mov ebx, [primeLoopNum]
+    inc ebx
+    inc ebx
+    mov dword [primeLoopNum], ebx
+
+    cmp ebx, eax
+    jge isPrime
 
     mov eax, [num_holder]
     xor edx, edx
-    mov ebx, [primeLoopNum]
     div ebx
 
     cmp edx, 0
@@ -261,7 +268,7 @@ checkNumsLoop:
 isPrime:
     inc dword [primecount]
 exitPrimeCheck:
-    ret
+    jmp continue_loopPr
 
 ; Add remainder to calculation
 print_remainder:
